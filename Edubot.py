@@ -271,27 +271,29 @@ def chat():
             return jsonify({"reply": f"⚠️ Error: {str(e)}"})
 
     # --- Subject-Based Image Question Handling ---
-    if "class 10" in user_msg or "Class 10" in user_msg or "CLASS 10" in user_msg or "class X" in user_msg or "class x" in user_msg or "Class X" in user_msg or "Class x" in user_msg or "CLASS X" in user_msg or "CLASS x":
-        student_class = "Class 10"
-    elif "class 11" in user_msg or "Class 11" in user_msg or "CLASS 11" in user_msg or "class XI" in user_msg or "class xi" in user_msg or "Class XI" in user_msg or "Class xi" in user_msg or "CLASS XI" in user_msg or "CLASS xi":
-        student_class = "Class 11"
-    elif "class 12" in user_msg or "Class 12" in user_msg or "CLASS 12" in user_msg or "class XII" in user_msg or "class xii" in user_msg or "Class XII" in user_msg or "Class xii" in user_msg or "CLASS XII" in user_msg or "CLASS xii":
+    user_msg_lower = user_msg.lower()
+
+    if "class 12" in user_msg_lower or "class xii" in user_msg_lower:
         student_class = "Class 12"
+    elif "class 11" in user_msg_lower or "class xi" in user_msg_lower:
+        student_class = "Class 11"
+    elif "class 10" in user_msg_lower or "class x" in user_msg_lower:
+        student_class = "Class 10"
     else:
         student_class = "Unknown class"
 
-    if "math" in user_msg or "mathematics" in user_msg or "Math" in user_msg or "Mathematics" in user_msg or "maths" in user_msg or "Maths" in user_msg or "MATH" in user_msg or "MATHS" in user_msg or "MATHEMATICS":
-        subject = "Maths"
-    elif "AI" in user_msg or "ai" in user_msg or "Artificial Intelligence" in user_msg or "artificial intelligence" in user_msg or "ARTIFICIAL INTELLIGENCE" in user_msg or "Artificial intelligence":
+    if "artificial intelligence" in user_msg_lower or "ai" in user_msg_lower:
         subject = "Artificial Intelligence"
-    elif "physics" in user_msg or "Physics" in user_msg or "PHYSICS" in user_msg:
+    elif "physics" in user_msg_lower:
         subject = "Physics"
-    elif "chemistry" in user_msg or "Chemistry" in user_msg or "CHEMISTRY" in user_msg or "CHEM" in user_msg or "Chem" in user_msg or "chem" in user_msg:
+    elif "chemistry" in user_msg_lower or "chem" in user_msg_lower:
         subject = "Chemistry"
-    elif "biology" in user_msg or "Biology" in user_msg or "BIOLOGY" in user_msg or "BIO" in user_msg or "bio" in user_msg or "Bio" in user_msg:
+    elif "biology" in user_msg_lower or "bio" in user_msg_lower:
         subject = "Biology"
-    elif "english" in user_msg or "English" in user_msg or "ENGLISH" in user_msg:
+    elif "english" in user_msg_lower:
         subject = "English"
+    elif "math" in user_msg_lower or "mathematics" in user_msg_lower or "maths" in user_msg_lower:
+        subject = "Maths"
     else:
         subject = "General"
 
@@ -305,6 +307,7 @@ def chat():
 
     reply = f"Here's a {difficulty} question for {student_class} {subject}:\n{question_image_html}"
     return jsonify({"reply": reply})
+
 
 @app.route("/")
 def index():
@@ -527,10 +530,3 @@ function toggleAIMode() {
 
 if __name__ == "__main__":
     app.run(debug=True)
-
-
-
-
-
-
-
