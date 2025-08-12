@@ -267,7 +267,15 @@ def chat():
     difficulty_selected = request.json.get("difficulty")
     ai_mode = request.json.get("ai_mode", False)
 
-  if ai_mode:
+@app.route("/chat", methods=["POST"])
+def chat():
+    user_msg = request.json.get("message")
+    class_selected = request.json.get("class")
+    subject_selected = request.json.get("subject")
+    difficulty_selected = request.json.get("difficulty")
+    ai_mode = request.json.get("ai_mode", False)
+
+    if ai_mode:
         if not model:
             return jsonify({
                 "reply": "❌ Gemini AI is not initialized. Please check server logs or contact administrator."
@@ -275,7 +283,6 @@ def chat():
         
         try:
             print(f"🤖 Sending to Gemini: {user_msg[:50]}...")  # Log first 50 chars
-            
             response = model.generate_content(user_msg)
             
             if hasattr(response, 'text') and response.text:
