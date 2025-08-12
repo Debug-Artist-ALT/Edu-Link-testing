@@ -267,20 +267,38 @@ def chat():
     difficulty_selected = request.json.get("difficulty")
     ai_mode = request.json.get("ai_mode", False)
 
-    if ai_mode:
+  if ai_mode:
         if not model:
-            return jsonify({"reply": "❌ Gemini AI is not initialized properly. Check API key or logs."})
+            return jsonify({
+                "reply": "❌ Gemini AI is not initialized. Please check server logs or contact administrator."
+            })
+        
         try:
+            print(f"🤖 Sending to Gemini: {user_msg[:50]}...")  # Log first 50 chars
+            
             response = model.generate_content(user_msg)
+            
             if hasattr(response, 'text') and response.text:
-                return jsonify({"reply": f"🌟 Gemini AI: {response.text}"})
+                clean_text = clean_gemini_math_text(response.text)
+                print(f"✅ Gemini responded with {len(clean_text)} characters")
+                return jsonify({"reply": f"🌟 Gemini AI: {clean_text}"})
             else:
-                print("⚠️ Gemini returned no text. Response:", response)
-                return jsonify({"reply": "⚠️ Gemini did not return any text."})
+                print("⚠️ Gemini returned empty response")
+                return jsonify({"reply": "⚠️ Gemini AI returned an empty response. Please try again."})
+                
         except Exception as e:
+            print(f"❌ Gemini API Error: {str(e)}")
             import traceback
             traceback.print_exc()
-            return jsonify({"reply": f"❌ Gemini API Error:\n{str(e)}"})
+            
+            # Provide more helpful error messages
+            error_msg = str(e)
+            if "API_KEY" in error_msg or "authentication" in error_msg.lower():
+                return jsonify({"reply": "❌ API Key authentication failed. Please check server configuration."})
+            elif "quota" in error_msg.lower() or "limit" in error_msg.lower():
+                return jsonify({"reply": "❌ API quota exceeded. Please try again later."})
+            else:
+                return jsonify({"reply": f"❌ Gemini AI Error: {error_msg}"})
 
     # === BELOW RUNS ONLY IF ai_mode IS OFF ===
 
