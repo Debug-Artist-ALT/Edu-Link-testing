@@ -1,20 +1,9 @@
-# === COMPLETE STRUCTURE FOR YOUR EDUBOT.PY ===
-# Make sure you have ONLY ONE of each route
-
 import fitz
+
 import nltk
 nltk.download('punkt')
 from nltk.tokenize import sent_tokenize
-import google.generativeai as genai
-import os
-import time
-import re
-from flask import Flask, request, jsonify, render_template_string
-import random
-from datetime import datetime
-import wikipedia
 
-# === PDF FUNCTIONS ===
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     full_text = ""
@@ -37,90 +26,66 @@ def answer_from_pdf(query):
             best_match = sent
     return best_match if best_match else "Sorry, I couldn't find anything relevant."
 
-# === GEMINI FUNCTIONS ===
+
+from flask import Flask, request, jsonify, render_template_string
+import random
+import os
+from datetime import datetime
+import wikipedia
+
+import google.generativeai as genai
+import os
+
+import re
+
 def clean_gemini_math_text(text):
+    # Remove markdown headers (like ##, ###)
     text = re.sub(r'^#{1,6}\s*', '', text, flags=re.MULTILINE)
+    
+    # Remove bold markers like **text**
     text = text.replace("**", "")
+    
+    # Remove horizontal rules (---)
     text = text.replace("---", "")
+    
+    # Replace LaTeX-style math ($...$) with just the math content
     text = re.sub(r'\$(.*?)\$', r'\1', text)
+    
+    # Strip leading/trailing whitespace from lines and remove empty lines
     lines = text.splitlines()
     cleaned_lines = [line.strip() for line in lines if line.strip()]
+    
     return "\n".join(cleaned_lines)
 
-def initialize_gemini():
-    """Initialize Gemini with comprehensive debugging and fallbacks"""
-    time.sleep(0.5)
-    
-    print("🔍 DEBUGGING GEMINI INITIALIZATION:")
-    print(f"Platform: {os.name}")
-    print(f"Working directory: {os.getcwd()}")
-    
-    possible_keys = ['GEMINI_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY', 'API_KEY']
-    
-    api_key = None
-    key_source = None
-    
-    print("🔍 Available environment variables with 'API' or 'GEMINI':")
-    for k, v in os.environ.items():
-        if 'API' in k.upper() or 'GEMINI' in k.upper():
-            print(f"   {k}: {'Found' if v else 'Empty'} (length: {len(v) if v else 0})")
-    
-    for key_name in possible_keys:
-        api_key = os.getenv(key_name)
-        if api_key:
-            key_source = key_name
-            print(f"✅ Found API key in {key_name} (length: {len(api_key)})")
-            break
-        else:
-            print(f"❌ {key_name} not found")
-    
-    if not api_key:
-        print("⚠️ No Gemini API key found in environment variables.")
-        print("🔍 Checked variables:", possible_keys)
-        return None
-    
-    try:
-        print(f"🔧 Configuring Gemini with API key from {key_source}...")
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash-exp")
-        
-        print("🧪 Testing Gemini connection...")
-        test_response = model.generate_content("Hello, respond with just 'Working'")
-        
-        if hasattr(test_response, 'text') and test_response.text:
-            print(f"✅ Gemini model initialized and tested successfully.")
-            print(f"✅ Test response: {test_response.text.strip()}")
-            return model
-        else:
-            print("⚠️ Gemini model created but test response was empty.")
-            return model
-            
-    except Exception as e:
-        print(f"❌ Gemini Initialization Failed: {e}")
-        import traceback
-        traceback.print_exc()
-        return None
+GEMINI_API_KEY = os.getenv("GEMINI_KEY")
 
-# === INITIALIZE GEMINI ===
-print("=" * 50)
-print("🚀 STARTING GEMINI INITIALIZATION...")
-model = initialize_gemini()
-
-if model:
-    print("🎉 SUCCESS: Gemini AI is ready!")
+if not GEMINI_API_KEY:
+    print("⚠️ GEMINI_API_KEY not found in environment. Gemini AI features will be disabled.")
+    model = None
 else:
-    print("⚠️ WARNING: Gemini AI features will be disabled.")
-    print("💡 Make sure your API key is set in Render environment variables.")
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        model = genai.GenerativeModel("gemini-2.5-flash")
+        print("✅ Gemini model initialized.")
+    except Exception as e:
+        print("❌ Gemini Initialization Failed:", e)
+        model = None
+        
+wikipedia.set_lang("en")  # English
 
-print("=" * 50)
-
-# === WIKIPEDIA SETUP ===
-wikipedia.set_lang("en")
-
-# === FLASK APP ===
 app = Flask(__name__)
 
-# === IMAGE PATHS DICTIONARY ===
+@app.route("/ask", methods=["POST"])
+def ask():
+    query = request.json.get("query")
+    return jsonify({"answer": answer_from_pdf(query)})
+
+@app.route("/get_pdf_text")
+def get_pdf_text():
+    pdf_path = "static/documents/AI_Book1.pdf"  
+    extracted_text = extract_text_from_pdf(pdf_path)
+    return jsonify({"text": extracted_text})
+
 image_paths = {
     "Beginner": {
         "10": {
@@ -174,7 +139,7 @@ image_paths = {
             "Artificial Intelligence": "static/questions/Class-12/Intermediate/Artificial_Intelligence"
         }
     },
-    "Advanced": {
+   "Advanced": {
         "10": {
             "Physics": "static/questions/Class-10/Advanced/Physics",
             "Chemistry": "static/questions/Class-10/Advanced/Chemistry",
@@ -202,7 +167,6 @@ image_paths = {
     }
 }
 
-# === MENU TEXT ===
 MENU_TEXT = """
 Hi! I am EduLink 🤖 Here's what I can help you with:
 
@@ -216,15 +180,15 @@ Example queries:
 - "Help" or "menu" to see this message again.
 """
 
-# === UTILITY FUNCTIONS ===
 def load_images(class_level, subject, difficulty):
     try:
         folder_path = image_paths[difficulty][class_level][subject]
         abs_folder_path = os.path.join(os.getcwd(), folder_path)
+
         images = [f for f in os.listdir(abs_folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
         if images:
             selected_image = random.choice(images)
-            web_path = f"/{folder_path}/{selected_image}".replace("\\", "/")
+            web_path = f"/{folder_path}/{selected_image}".replace("\\", "/")  # Normalize slashes for web
             print(f"✅ Selected image path: {web_path}")
             return web_path
         else:
@@ -234,13 +198,14 @@ def load_images(class_level, subject, difficulty):
         print(f"❌ Error loading image: {e}")
         return None
 
+
 def get_difficulty(user_input):
     user_input = user_input.lower()
-    if any(word in user_input for word in ["beginner", "easy", "simple", "basic"]):
+    if any(word in user_input for word in ["beginner", "easy", "simple", "basic", "Beginner", "Easy", "Simple", "Basic", "BEGINNER", "EASY", "SIMPLE", "BASIC"]):
         return "Beginner"
-    elif any(word in user_input for word in ["intermediate", "medium", "normal"]):
+    elif any(word in user_input for word in ["intermediate", "medium", "normal", "Intermediate", "Medium", "Normal", "INTERMEDIATE", "MEDIUM", "NORMAL"]):
         return "Intermediate"
-    elif any(word in user_input for word in ["advanced", "hard", "difficult", "challenging"]):
+    elif any(word in user_input for word in ["advanced", "hard", "difficult", "challenging", "advanced", "Hard", "Difficult", "Challenging", "ADVANCED", "HARD", "DIFFICULT", "CHALLENGING"]):
         return "Advanced"
     return "Beginner"
 
@@ -249,19 +214,6 @@ def get_question(student_class, subject, difficulty):
     image_path = load_images(class_level, subject, difficulty)
     return image_path if image_path else "Sorry, I don't have questions for your request yet."
 
-# === FLASK ROUTES ===
-# Make sure you have ONLY ONE of each route!
-
-@app.route("/ask", methods=["POST"])
-def ask():
-    query = request.json.get("query")
-    return jsonify({"answer": answer_from_pdf(query)})
-
-@app.route("/get_pdf_text")
-def get_pdf_text():
-    pdf_path = "static/documents/AI_Book1.pdf"  
-    extracted_text = extract_text_from_pdf(pdf_path)
-    return jsonify({"text": extracted_text})
 
 @app.route("/chat", methods=["POST"])
 def chat():
@@ -271,37 +223,20 @@ def chat():
     difficulty_selected = request.json.get("difficulty")
     ai_mode = request.json.get("ai_mode", False)
 
-    # === AI MODE HANDLING ===
     if ai_mode:
         if not model:
-            return jsonify({
-                "reply": "❌ Gemini AI is not initialized. Please check server logs or contact administrator."
-            })
-        
+            return jsonify({"reply": "❌ Gemini AI is not initialized properly. Check API key or logs."})
         try:
-            print(f"🤖 Sending to Gemini: {user_msg[:50]}...")
             response = model.generate_content(user_msg)
-            
             if hasattr(response, 'text') and response.text:
-                clean_text = clean_gemini_math_text(response.text)
-                print(f"✅ Gemini responded with {len(clean_text)} characters")
-                return jsonify({"reply": f"🌟 Gemini AI: {clean_text}"})
+                return jsonify({"reply": f"🌟 Gemini AI: {response.text}"})
             else:
-                print("⚠️ Gemini returned empty response")
-                return jsonify({"reply": "⚠️ Gemini AI returned an empty response. Please try again."})
-                
+                print("⚠️ Gemini returned no text. Response:", response)
+                return jsonify({"reply": "⚠️ Gemini did not return any text."})
         except Exception as e:
-            print(f"❌ Gemini API Error: {str(e)}")
             import traceback
             traceback.print_exc()
-            
-            error_msg = str(e)
-            if "API_KEY" in error_msg or "authentication" in error_msg.lower():
-                return jsonify({"reply": "❌ API Key authentication failed. Please check server configuration."})
-            elif "quota" in error_msg.lower() or "limit" in error_msg.lower():
-                return jsonify({"reply": "❌ API quota exceeded. Please try again later."})
-            else:
-                return jsonify({"reply": f"❌ Gemini AI Error: {error_msg}"})
+            return jsonify({"reply": f"❌ Gemini API Error:\n{str(e)}"})
 
     # === BELOW RUNS ONLY IF ai_mode IS OFF ===
 
@@ -319,11 +254,11 @@ def chat():
             return jsonify({"reply": "❌ Sorry! I couldn't read the PDF right now."})
 
     # --- Help/Menu Handling ---
-    if any(word in user_msg for word in ["help", "menu", "options", "Help", "HELP"]):
+    if any(word in user_msg for word in ["help", "menu", "options", "Help", "HELP" ]):
         return jsonify({"reply": MENU_TEXT})
 
     # --- Wikipedia Summary Handling ---
-    if "define" in user_msg or "what is" in user_msg or "who is" in user_msg:
+    if "define" in user_msg or "what is" in user_msg or "who is" in user_msg or "Define" in user_msg or "What is" in user_msg or "Who is" in user_msg:
         try:
             term = user_msg.replace("define", "").replace("what is", "").replace("who is", "").strip()
             summary = wikipedia.summary(term, sentences=2)
@@ -373,6 +308,7 @@ def chat():
     reply = f"Here's a {difficulty} question for {student_class} {subject}:\n{question_image_html}"
     return jsonify({"reply": reply})
 
+
 @app.route("/")
 def index():
     return render_template_string('''
@@ -385,7 +321,209 @@ def index():
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body class="bg-gray-100 min-h-screen">
-  <!-- Your existing HTML content here -->
+  <div class="container mx-auto max-w-4xl p-4">
+    <header class="bg-white rounded-t-xl shadow-md p-6 flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-blue-600">EduLink <span class="text-blue-400">🤖</span></h1>
+        <p class="text-gray-600">Your AI-powered learning assistant</p>
+      </div>
+      <div class="flex items-center space-x-2">
+        <span class="relative flex h-3 w-3">
+          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+          <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+        </span>
+        <span class="text-sm text-gray-500">Online</span>
+        <button id="aiModeButton" onclick="toggleAIMode()" class="bg-gray-200 hover:bg-blue-600 hover:text-white text-blue-700 px-4 py-2 rounded-full text-sm transition-all">
+  AI Mode: OFF
+</button>
+
+      </div>
+    </header>
+
+    <div class="chat-container bg-white rounded-b-xl shadow-md overflow-hidden flex flex-col" style="height: 70vh;">
+      <div id="chatArea" class="flex-1 p-6 overflow-y-auto">
+        <div class="flex mb-4">
+          <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+            <i class="fas fa-robot text-blue-600"></i>
+          </div>
+          <div class="max-w-xl">
+            <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
+              <p>Hi there! 👋 I'm EduLink, your AI learning assistant.</p>
+              <p class="mt-2">I can help you with questions for Class 10, 11, and 12 in various subjects.</p>
+            </div>
+            <div class="text-xs text-gray-500 ml-2 mt-1">{{ now }}</div>
+          </div>
+        </div>
+        <div class="flex flex-wrap gap-2 mt-6">
+          <button onclick="sendSuggestion('Help')" class="suggestion-chip bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-full text-sm font-medium transition-all">
+            Show Help
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-gray-200 p-4 bg-gray-50">
+        <div class="flex items-center gap-2">
+          <input id="userInput" type="text" placeholder="Ask me anything about Class 10 subjects..." 
+                 class="flex-1 border border-gray-300 rounded-full py-3 px-6 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+          <button onclick="sendMessage()" class="bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full w-12 h-12 flex items-center justify-center transition-all">
+            <i class="fas fa-paper-plane"></i>
+          </button>
+        </div>
+        <div class="text-xs text-gray-500 mt-2 text-center">
+          Example: "Give me a medium difficulty math question"
+        </div>
+      </div>
+    </div>
+
+    <!-- Colored Info Boxes Section -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+      <div class="bg-blue-100 p-4 rounded-lg shadow-md">
+        <h4 class="font-bold text-lg text-blue-800">24/7 Availability</h4>
+        <p class="text-gray-700">EduLink is available anytime to assist you with your learning needs.</p>
+      </div>
+      <div class="bg-green-100 p-4 rounded-lg shadow-md">
+        <h4 class="font-bold text-lg text-green-800">Personalized Learning</h4>
+        <p class="text-gray-700">Get questions tailored to your class and difficulty level.</p>
+      </div>
+      <div class="bg-yellow-100 p-4 rounded-lg shadow-md">
+        <h4 class="font-bold text-lg text-yellow-800">Difficulty Levels Include</h4>
+        <p class="text-gray-700">Beginner, Intermediate, Advanced and Competitive Exams for classes 10 to 12!</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  const chatArea = document.getElementById('chatArea');
+  const userInput = document.getElementById('userInput');
+  
+  function styleBotReply(text) {
+  if (text.includes("Here's what I found about")) {
+    return `
+      <div class="flex items-start bg-yellow-100 border-l-4 border-yellow-500 text-yellow-900 p-4 rounded shadow-sm">
+        <div class="mr-2 mt-1 text-yellow-500">
+          <i class="fas fa-book-open"></i>
+        </div>
+        <div>${text}</div>
+      </div>`;
+  }
+  return `<p>${text}</p>`;
+}                                
+
+  function appendMessage(sender, text, isBot = false) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `flex mb-4 ${isBot ? '' : 'justify-end'}`;
+    const messageContent = `
+      ${!isBot ? `
+        <div class="max-w-xl order-1">
+          <div class="bg-blue-600 text-white p-4 rounded-lg rounded-tr-none">
+            <p>${text}</p>
+          </div>
+          <div class="text-xs text-gray-500 mr-2 mt-1 text-right">${formatTime()}</div>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center ml-3 order-2">
+          <i class="fas fa-user text-white"></i>
+        </div>
+      ` : `
+        <div class="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mr-3">
+          <i class="fas fa-robot text-blue-600"></i>
+        </div>
+        <div class="max-w-xl">
+          <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
+            ${styleBotReply(text)}
+
+
+          </div>
+          <div class="text-xs text-gray-500 ml-2 mt-1">${formatTime()}</div>
+        </div>
+      `}
+    `;
+    messageDiv.innerHTML = messageContent;
+    chatArea.appendChild(messageDiv);
+    chatArea.scrollTop = chatArea.scrollHeight;
+  }
+
+  function sendSuggestion(text) {
+    userInput.value = text;
+    sendMessage();
+  }
+
+ async function sendMessage() {
+  const message = userInput.value.trim();
+  if (!message) return;
+  appendMessage('You', message, false);
+  userInput.value = '';
+
+  try {
+    const response = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, ai_mode: aiMode })
+    });
+    const data = await response.json();
+    appendMessage('EduLink', data.reply, true);
+  } catch (err) {
+    appendMessage('EduLink', 'Error: Could not connect to the server.', true);
+  }
+}
+
+  function formatTime() {
+    const now = new Date();
+    let hours = now.getHours();
+    let minutes = now.getMinutes();
+    const ampm = hours >= 12 ? 'pm' : 'am';
+    hours = hours % 12;
+    hours = hours ? hours : 12;
+    minutes = minutes < 10 ? '0' + minutes : minutes;
+    return `${hours}:${minutes} ${ampm}`;
+  }
+
+  userInput.addEventListener('keydown', function(event) {
+    if (event.key === 'Enter') {
+      sendMessage();
+    }
+  });
+
+  // ✅ Add mic button for voice input
+  const micButton = document.createElement('button');
+  micButton.innerHTML = '<i class="fas fa-microphone"></i>';
+  micButton.className = "bg-gray-300 hover:bg-gray-400 text-black p-3 rounded-full w-12 h-12 flex items-center justify-center transition-all ml-2";
+  micButton.onclick = () => {
+    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    recognition.lang = 'en-IN';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.start();
+
+    recognition.onresult = function(event) {
+      const speechText = event.results[0][0].transcript;
+      userInput.value = speechText;
+      sendMessage();
+    };
+
+    recognition.onerror = function(event) {
+      alert('Speech recognition error: ' + event.error);
+    };
+  };
+
+  // ✅ Attach mic to input row on page load
+  window.addEventListener('DOMContentLoaded', () => {
+    const inputRow = document.querySelector('.border-t .flex');
+    inputRow.appendChild(micButton);
+  });
+
+  let aiMode = false;
+
+function toggleAIMode() {
+  aiMode = !aiMode;
+  const button = document.getElementById('aiModeButton');
+  button.textContent = `AI Mode: ${aiMode ? 'ON 🤖' : 'OFF'}`;
+  button.className = aiMode 
+    ? 'bg-blue-600 text-white px-4 py-2 rounded-full text-sm transition-all'
+    : 'bg-gray-200 hover:bg-blue-600 hover:text-white text-blue-700 px-4 py-2 rounded-full text-sm transition-all';
+}
+</script>
+
 </body>
 </html>
 ''', now=datetime.now().strftime("%I:%M %p"))
