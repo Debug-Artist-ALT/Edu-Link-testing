@@ -57,19 +57,63 @@ def clean_gemini_math_text(text):
     
     return "\n".join(cleaned_lines)
 
-GEMINI_API_KEY = os.getenv("GEMINI_KEY")
+import time
 
-if not GEMINI_API_KEY:
-    print("⚠️ GEMINI_API_KEY not found in environment. Gemini AI features will be disabled.")
-    model = None
-else:
+def initialize_gemini():
+    """Initialize Gemini with comprehensive debugging and fallbacks"""
+    
+    # Add delay for environment loading
+    time.sleep(0.5)
+    
+    # Check multiple possible environment variable names
+    possible_keys = ['GEMINI_KEY', 'GEMINI_API_KEY', 'GOOGLE_API_KEY']
+    
+    api_key = None
+    key_source = None
+    
+    # Try each possible key name
+    for key_name in possible_keys:
+        api_key = os.getenv(key_name)
+        if api_key:
+            key_source = key_name
+            break
+    
+    if not api_key:
+        print("⚠️ No Gemini API key found in environment variables.")
+        print("🔍 Checked variables:", possible_keys)
+        print("📋 Available environment variables containing 'API' or 'GEMINI':")
+        for k, v in os.environ.items():
+            if 'API' in k.upper() or 'GEMINI' in k.upper():
+                print(f"   {k}: {'Found' if v else 'Empty'}")
+        return None
+    
     try:
-        genai.configure(api_key=GEMINI_API_KEY)
-        model = genai.GenerativeModel("gemini-2.5-flash")
-        print("✅ Gemini model initialized.")
+        print(f"🔧 Found API key in {key_source} (length: {len(api_key)})")
+        genai.configure(api_key=api_key)
+        
+        # Use the newer model name
+        model = genai.GenerativeModel("gemini-2.0-flash-exp")
+        
+        # Test the connection
+        print("🧪 Testing Gemini connection...")
+        test_response = model.generate_content("Hello")
+        
+        if hasattr(test_response, 'text') and test_response.text:
+            print("✅ Gemini model initialized and tested successfully.")
+            return model
+        else:
+            print("⚠️ Gemini model created but test failed.")
+            return model  # Return anyway
+            
     except Exception as e:
-        print("❌ Gemini Initialization Failed:", e)
-        model = None
+        print(f"❌ Gemini Initialization Failed: {e}")
+        import traceback
+        traceback.print_exc()
+        return None
+
+# Initialize Gemini
+print("🚀 Initializing Gemini AI...")
+model = initialize_gemini()
         
 wikipedia.set_lang("en")  # English
 
