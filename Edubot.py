@@ -78,17 +78,7 @@ app = Flask(__name__)
 @app.route("/test-env")
 def test_env():
     key_value = os.getenv("GEMINI_API_KEY")
-    if key_value:
-        return jsonify({
-            "status": "✅ Found",
-            "length": len(key_value),
-            "preview": key_value[:6] + "..." + key_value[-4:]
-        })
-    else:
-        return jsonify({
-            "status": "❌ Not Found",
-            "message": "Environment variable GEMINI_KEY is missing or empty"
-        })
+    return {"value": key_value if key_value else "MISSING"}
 
 @app.route("/ask", methods=["POST"])
 def ask():
