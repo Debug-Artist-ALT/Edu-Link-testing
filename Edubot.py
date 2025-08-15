@@ -77,7 +77,7 @@ app = Flask(__name__)
 
 @app.route("/test-env")
 def test_env():
-    key_value = os.getenv("GEMINI_KEY")
+    key_value = os.getenv("GEMINI_API_KEY")
     if key_value:
         return jsonify({
             "status": "✅ Found",
