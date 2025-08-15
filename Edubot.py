@@ -75,6 +75,13 @@ wikipedia.set_lang("en")  # English
 
 app = Flask(__name__)
 
+@app.route("/debug-env")
+def debug_env():
+    import os
+    return {
+        "env_keys": sorted(list(os.environ.keys()))
+    }
+
 @app.route("/test-env")
 def test_env():
     key_value = os.getenv("GEMINI_API_KEY")
