@@ -57,7 +57,7 @@ def clean_gemini_math_text(text):
     
     return "\n".join(cleaned_lines)
 
-GEMINI_API_KEY = os.getenv("GEMINI_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 if not GEMINI_API_KEY:
     print("⚠️ GEMINI_API_KEY not found in environment. Gemini AI features will be disabled.")
