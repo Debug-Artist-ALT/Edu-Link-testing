@@ -180,16 +180,20 @@ image_paths = {
 }
 
 MENU_TEXT = """
-Hi! I am EduLink 🤖 Here's what I can help you with:\n\n
+Hi! I am EduLink 🤖 Here's what I can help you with:<br><br>
 
-1. Tell me your class (e.g., "class 10").\n
-2. Mention your subject (e.g., "math", "science").\n
-3. Specify difficulty (Beginner, Intermediate, Advanced) — optional.\n\n
+<ol>
+  <li>Tell me your class (e.g., "class 10").</li>
+  <li>Mention your subject (e.g., "math", "science").</li>
+  <li>Specify difficulty (Beginner, Intermediate, Advanced) — optional.</li>
+</ol>
 
-Example queries:\n
-- "Give me an easy AI question for class 10 , 11 or 12"\n
-- "I want a hard Physics problem"\n
-- "Help" or "menu" to see this message again.\n
+<p>Example queries:</p>
+<ul>
+  <li>"Give me an easy AI question for class 10 , 11 or 12"</li>
+  <li>"I want a hard Physics problem"</li>
+  <li>"Help" or "menu" to see this message again.</li>
+</ul>
 """
 
 def load_images(class_level, subject, difficulty):
@@ -326,12 +330,6 @@ def index():
     return render_template_string('''
 <!DOCTYPE html>
 <html lang="en">
-<style>
-  /* Make bot messages respect \n as line breaks */
-  .bot-message {
-    white-space: pre-line;
-  }
-</style>
 <head>
   <meta charset="UTF-8">
   <title>EduLink 🤖 | AI Learning Assistant</title>
@@ -446,7 +444,7 @@ def index():
           <i class="fas fa-robot text-blue-600"></i>
         </div>
         <div class="max-w-xl">
-          <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none bot-message">
+          <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
             ${styleBotReply(text)}
 
 
