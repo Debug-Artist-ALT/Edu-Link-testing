@@ -180,16 +180,16 @@ image_paths = {
 }
 
 MENU_TEXT = """
-Hi! I am EduLink 🤖 Here's what I can help you with:
+Hi! I am EduLink 🤖 Here's what I can help you with:\n\n
 
-1. Tell me your class (e.g., "class 10").
-2. Mention your subject (e.g., "math", "science").
-3. Specify difficulty (Beginner, Intermediate, Advanced) — optional.
+1. Tell me your class (e.g., "class 10").\n
+2. Mention your subject (e.g., "math", "science").\n
+3. Specify difficulty (Beginner, Intermediate, Advanced) — optional.\n\n
 
-Example queries:
-- "Give me an easy math question for class 10"
-- "I want a hard science problem"
-- "Help" or "menu" to see this message again.
+Example queries:\n
+- "Give me an easy AI question for class 10 , 11 or 12"\n
+- "I want a hard Physics problem"\n
+- "Help" or "menu" to see this message again.\n
 """
 
 def load_images(class_level, subject, difficulty):
