@@ -326,6 +326,12 @@ def index():
     return render_template_string('''
 <!DOCTYPE html>
 <html lang="en">
+<style>
+  /* Make bot messages respect \n as line breaks */
+  .bot-message {
+    white-space: pre-line;
+  }
+</style>
 <head>
   <meta charset="UTF-8">
   <title>EduLink 🤖 | AI Learning Assistant</title>
@@ -440,7 +446,7 @@ def index():
           <i class="fas fa-robot text-blue-600"></i>
         </div>
         <div class="max-w-xl">
-          <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
+          <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none bot-message">
             ${styleBotReply(text)}
 
 
