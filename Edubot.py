@@ -21,16 +21,29 @@ sentences10 = sent_tokenize(pdf_text10)
 sentences11 = sent_tokenize(pdf_text11)
 sentences12 = sent_tokenize(pdf_text12)
 
-def answer_from_pdf(query):
+# Dictionary to hold sentences for each book
+pdf_sources = {
+    "book10": sentences10,
+    "book11": sentences11,
+    "book12": sentences12
+}
+
+def answer_from_pdf(query, source):
     query = query.lower()
     best_match = ""
     max_overlap = 0
+
+    sentences = pdf_sources.get(source.lower())
+    if not sentences:
+        return f"❌ Source '{source}' not found. Available: {list(pdf_sources.keys())}"
+
     for sent in sentences:
         words = set(sent.lower().split())
         overlap = len(set(query.split()) & words)
         if overlap > max_overlap:
             max_overlap = overlap
             best_match = sent
+
     return best_match if best_match else "Sorry, I couldn't find anything relevant."
 
 
@@ -208,7 +221,7 @@ Hi! I am EduLink 🤖 Here's how to use non AI mode:<br><br>
 
 <ol>
   <li>For definitions - Define (or) What is (Your_Query)</li>
-  <li>For topics from student handbook - What is (You_Query) from the pdf</li>
+  <li>For topics from student handbook - What is (You_Query) from the (class 10 or 11 or 12) pdf</li>
   <li>For subject specific questions - Give me a (difficulty) question of (class) (subject)</li>
 </ol>
 
@@ -282,17 +295,22 @@ def chat():
     # === BELOW RUNS ONLY IF ai_mode IS OFF ===
 
     # --- PDF Query Handling ---
-    if "pdf" in user_msg:
-        try:
-            with fitz.open("static/documents/AI_Book1.pdf") as doc:
-                pdf_text = ""
-                for page in doc:
-                    pdf_text += page.get_text()
-            answer = answer_from_pdf(user_msg)
-            return jsonify({"reply": f"📄 PDF Answer: {answer}"})
-        except Exception as e:
-            print("PDF ERROR:", e)
-            return jsonify({"reply": "❌ Sorry! I couldn't read the PDF right now."})
+if "pdf" in user_msg.lower():
+    try:
+        # detect which book to use
+        if "class 10" in user_msg.lower():
+            answer = answer_from_pdf(user_msg, "book10")
+        elif "class 11" in user_msg.lower():
+            answer = answer_from_pdf(user_msg, "book11")
+        elif "class 12" in user_msg.lower():
+            answer = answer_from_pdf(user_msg, "book12")
+        else:
+            return jsonify({"reply": "⚠️ Please specify which PDF (class 10, class 11, or class 12)."})
+
+        return jsonify({"reply": f"📄 PDF Answer ({answer})"})
+    except Exception as e:
+        print("PDF ERROR:", e)
+        return jsonify({"reply": "❌ Sorry! I couldn't read the PDF right now."})
 
     # --- Help/Menu Handling ---
     if any(word in user_msg for word in ["help", "menu", "options", "Help", "HELP" ]):
