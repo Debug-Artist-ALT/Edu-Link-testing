@@ -295,23 +295,23 @@ def chat():
     # === BELOW RUNS ONLY IF ai_mode IS OFF ===
 
     # --- PDF Query Handling ---
-if "pdf" in user_msg.lower():
-    try:
-        # detect which book to use
-        if "class 10" in user_msg.lower():
-            answer = answer_from_pdf(user_msg, "book10")
-        elif "class 11" in user_msg.lower():
-            answer = answer_from_pdf(user_msg, "book11")
-        elif "class 12" in user_msg.lower():
-            answer = answer_from_pdf(user_msg, "book12")
-        else:
-            return jsonify({"reply": "⚠️ Please specify which PDF (class 10, class 11, or class 12)."})
+    if "pdf" in user_msg.lower():
+        try:
+            # detect which book to use
+            if "class 10" in user_msg.lower():
+                answer = answer_from_pdf(user_msg, "book10")
+            elif "class 11" in user_msg.lower():
+                answer = answer_from_pdf(user_msg, "book11")
+            elif "class 12" in user_msg.lower():
+                answer = answer_from_pdf(user_msg, "book12")
+            else:
+                return jsonify({"reply": "⚠️ Please specify which PDF (class 10, class 11, or class 12)."})
 
-        return jsonify({"reply": f"📄 PDF Answer ({answer})"})
-    except Exception as e:
-        print("PDF ERROR:", e)
-        return jsonify({"reply": "❌ Sorry! I couldn't read the PDF right now."})
-
+            return jsonify({"reply": f"📄 PDF Answer: {answer}"})
+        except Exception as e:
+            print("PDF ERROR:", e)
+            return jsonify({"reply": "❌ Sorry! I couldn't read the PDF right now."})
+            
     # --- Help/Menu Handling ---
     if any(word in user_msg for word in ["help", "menu", "options", "Help", "HELP" ]):
         return jsonify({"reply": MENU_TEXT})
