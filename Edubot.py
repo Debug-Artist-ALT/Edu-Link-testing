@@ -196,6 +196,24 @@ Hi! I am EduLink 🤖 Here's what I can help you with:<br><br>
 </ul>
 """
 
+INSTRUCTIONS_TEXT = """
+Hi! I am EduLink 🤖 Here's how to use non AI mode:<br><br>
+
+<ol>
+  <li>For definitions - Define (or) What is (Your_Query)</li>
+  <li>For topics from student handbook - What is (You_Query) from the pdf</li>
+  <li>For subject specific questions - Give me a (difficulty) question of (class) (subject)</li>
+</ol>
+
+<p>Example queries:</p>
+<ul>
+  <li>"Define Photosynthesis"</li>
+  <li>"Give me a medium question of class 11 AI"</li>
+  <li>"Instructions" to see this message again.</li>
+</ul>
+"""
+
+
 def load_images(class_level, subject, difficulty):
     try:
         folder_path = image_paths[difficulty][class_level][subject]
@@ -273,6 +291,11 @@ def chat():
     if any(word in user_msg for word in ["help", "menu", "options", "Help", "HELP" ]):
         return jsonify({"reply": MENU_TEXT})
 
+    # --- Instructions Handling ---
+    if any(word in user_msg for word in ["Instructions", "instructions", "INSTRUCTIONS" ]):
+        return jsonify({"reply": INSTRUCTIONS_TEXT})
+
+    
     # --- Wikipedia Summary Handling ---
     if "define" in user_msg or "what is" in user_msg or "who is" in user_msg or "Define" in user_msg or "What is" in user_msg or "Who is" in user_msg:
         try:
@@ -375,6 +398,11 @@ def index():
             Show Help
           </button>
         </div>
+        <div class="flex flex-wrap gap-2 mt-6">
+          <button onclick="sendSuggestion('Instructions')" class="suggestion-chip bg-gray-100 hover:bg-gray-200 text-gray-800 px-4 py-2 rounded-full text-sm font-medium transition-all">
+            Show Instructions
+          </button>
+        </div> 
       </div>
 
       <div class="border-t border-gray-200 p-4 bg-gray-50">
