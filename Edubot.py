@@ -29,37 +29,38 @@ pdf_sources = {
     "book12": sentences12
 }
 
-# --- test pdf ---
+# --- pdf ---
 
 def answer_from_pdf(query, source):
     query = query.lower()
     best_matches = []
 
-    # get correct PDF sentences
     sentences = pdf_sources.get(source.lower())
     if not sentences:
         return f"❌ Source '{source}' not found. Available: {list(pdf_sources.keys())}"
 
-    # group sentences into paragraphs (split on double newlines or big gaps)
+    # Try paragraph split first
     paragraphs = re.split(r"\n\s*\n", " ".join(sentences))
+    # If no real paragraphs, just use sentences instead
+    if len(paragraphs) <= 1:
+        paragraphs = sentences  
 
-    # score each paragraph using fuzzy similarity
+    # Score each paragraph/sentence
     for para in paragraphs:
         score = difflib.SequenceMatcher(None, query, para.lower()).ratio()
         best_matches.append((score, para.strip()))
 
-    # sort by similarity score (highest first)
+    # Sort by best similarity
     best_matches.sort(reverse=True, key=lambda x: x[0])
 
-    # return top 1–2 paragraphs
+    # Return top 1–2 matches
     top_results = [m[1] for m in best_matches[:2] if m[0] > 0.2]
 
     if top_results:
         return "\n\n---\n\n".join(top_results)
     else:
         return "❌ Sorry, I couldn't find anything relevant."
-
-# --- test pdf ---
+# --- pdf ---
 
 from flask import Flask, request, jsonify, render_template_string
 import random
