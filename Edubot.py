@@ -1,4 +1,5 @@
 import fitz
+import difflib
 
 import nltk
 nltk.download('punkt')
@@ -28,24 +29,37 @@ pdf_sources = {
     "book12": sentences12
 }
 
+# --- test pdf ---
+
 def answer_from_pdf(query, source):
     query = query.lower()
-    best_match = ""
-    max_overlap = 0
+    best_matches = []
 
+    # get correct PDF sentences
     sentences = pdf_sources.get(source.lower())
     if not sentences:
         return f"❌ Source '{source}' not found. Available: {list(pdf_sources.keys())}"
 
-    for sent in sentences:
-        words = set(sent.lower().split())
-        overlap = len(set(query.split()) & words)
-        if overlap > max_overlap:
-            max_overlap = overlap
-            best_match = sent
+    # group sentences into paragraphs (split on double newlines or big gaps)
+    paragraphs = re.split(r"\n\s*\n", " ".join(sentences))
 
-    return best_match if best_match else "Sorry, I couldn't find anything relevant."
+    # score each paragraph using fuzzy similarity
+    for para in paragraphs:
+        score = difflib.SequenceMatcher(None, query, para.lower()).ratio()
+        best_matches.append((score, para.strip()))
 
+    # sort by similarity score (highest first)
+    best_matches.sort(reverse=True, key=lambda x: x[0])
+
+    # return top 1–2 paragraphs
+    top_results = [m[1] for m in best_matches[:2] if m[0] > 0.2]
+
+    if top_results:
+        return "\n\n---\n\n".join(top_results)
+    else:
+        return "❌ Sorry, I couldn't find anything relevant."
+
+# --- test pdf ---
 
 from flask import Flask, request, jsonify, render_template_string
 import random
