@@ -11,8 +11,15 @@ def extract_text_from_pdf(pdf_path):
         full_text += page.get_text()
     return full_text
 
-pdf_text = extract_text_from_pdf("static/documents/AI_Book1.pdf")
-sentences = sent_tokenize(pdf_text)
+# Extract text from each PDF separately
+pdf_text10 = extract_text_from_pdf("static/documents/AI_Book10.pdf")
+pdf_text11 = extract_text_from_pdf("static/documents/AI_Book11.pdf")
+pdf_text12 = extract_text_from_pdf("static/documents/AI_Book12.pdf")
+
+# Tokenize sentences separately
+sentences10 = sent_tokenize(pdf_text10)
+sentences11 = sent_tokenize(pdf_text11)
+sentences12 = sent_tokenize(pdf_text12)
 
 def answer_from_pdf(query):
     query = query.lower()
