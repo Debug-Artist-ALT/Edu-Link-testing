@@ -1,16 +1,22 @@
 import fitz
 import difflib
-
+import re  # ← FIXED: Added missing import
 import nltk
-nltk.download('punkt')
+nltk.download('punkt', quiet=True)
 from nltk.tokenize import sent_tokenize
 
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
-    full_text = ""
+    full_text = []
     for page in doc:
-        full_text += page.get_text()
-    return full_text
+        # FIXED: Use "blocks" for better paragraph structure [web:9][web:10]
+        blocks = page.get_text("blocks")
+        for block in blocks:
+            text = block[4].strip()
+            if text and len(text) > 20:  # Skip short headers/footers
+                full_text.append(text)
+    doc.close()
+    return "\n\n".join(full_text)
 
 # Extract text from each PDF separately
 pdf_text10 = extract_text_from_pdf("static/documents/AI_Book10.pdf")
@@ -30,36 +36,46 @@ pdf_sources = {
 }
 
 # --- pdf ---
-
 def answer_from_pdf(query, source):
-    query = query.lower()
+    query_low = query.lower().strip()
     best_matches = []
 
     sentences = pdf_sources.get(source.lower())
     if not sentences:
         return f"❌ Source '{source}' not found. Available: {list(pdf_sources.keys())}"
 
-    # Try paragraph split first
-    paragraphs = re.split(r"\n\s*\n", " ".join(sentences))
-    # If no real paragraphs, just use sentences instead
+    # FIXED: Better paragraph splitting + keyword filtering
+    raw_text = "\n\n".join(sentences)
+    paragraphs = re.split(r'\n\s*\n', raw_text)
     if len(paragraphs) <= 1:
-        paragraphs = sentences  
+        paragraphs = [s.strip() for s in sentences if s.strip()]
 
-    # Score each paragraph/sentence
+    # FIXED: Keyword filter before scoring
+    query_words = set(query_low.split())
+    
     for para in paragraphs:
-        score = difflib.SequenceMatcher(None, query, para.lower()).ratio()
+        para_low = para.lower().strip()
+        if not para_low or len(para_low) < 30:
+            continue
+            
+        # Must share keywords with query
+        para_words = set(para_low.split())
+        common_words = query_words.intersection(para_words)
+        if len(common_words) < 1:
+            continue
+            
+        score = difflib.SequenceMatcher(None, query_low, para_low).ratio()
         best_matches.append((score, para.strip()))
 
-    # Sort by best similarity
-    best_matches.sort(reverse=True, key=lambda x: x[0])
+    if not best_matches:
+        return "❌ No relevant content found. Try rephrasing your query."
 
-    # Return top 1–2 matches
-    top_results = [m[1] for m in best_matches[:2] if m[0] > 0.2]
+    best_matches.sort(reverse=True, key=lambda x: x[0])
+    top_results = [m[1] for m in best_matches[:3] if m[0] > 0.25]
 
     if top_results:
-        return "\n\n---\n\n".join(top_results)
-    else:
-        return "❌ Sorry, I couldn't find anything relevant."
+        return "\n\n---\n\n".join(top_results[:2])
+    return "❌ No good matches found (similarity too low)."
 # --- pdf ---
 
 from flask import Flask, request, jsonify, render_template_string
@@ -69,9 +85,6 @@ from datetime import datetime
 import wikipedia
 
 import google.generativeai as genai
-import os
-
-import re
 
 def clean_gemini_math_text(text):
     # Remove markdown headers (like ##, ###)
@@ -122,16 +135,31 @@ def test_env():
     key_value = os.getenv("GEMINI_API_KEY")
     return {"value": key_value if key_value else "MISSING"}
 
+# FIXED: /ask now accepts source parameter
 @app.route("/ask", methods=["POST"])
 def ask():
-    query = request.json.get("query")
-    return jsonify({"answer": answer_from_pdf(query)})
+    data = request.json or {}
+    query = data.get("query", "")
+    source = data.get("source", "book10")  # Default to book10
+    
+    if not query:
+        return jsonify({"answer": "❌ Please provide a query."})
+    
+    answer = answer_from_pdf(query, source)
+    return jsonify({"answer": answer})
 
 @app.route("/get_pdf_text")
 def get_pdf_text():
     pdf_path = "static/documents/AI_Book1.pdf"  
     extracted_text = extract_text_from_pdf(pdf_path)
     return jsonify({"text": extracted_text})
+
+# Test route to verify PDF search works
+@app.route("/test_pdf/<source>")
+def test_pdf(source):
+    test_query = "supervised learning"
+    result = answer_from_pdf(test_query, source)
+    return jsonify({"query": test_query, "source": source, "result": result})
 
 image_paths = {
     "Beginner": {
@@ -415,7 +443,6 @@ def index():
         <button id="aiModeButton" onclick="toggleAIMode()" class="bg-gray-200 hover:bg-blue-600 hover:text-white text-blue-700 px-4 py-2 rounded-full text-sm transition-all">
   AI Mode: OFF
 </button>
-
       </div>
     </header>
 
@@ -429,6 +456,7 @@ def index():
             <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
               <p>Hi there! 👋 I'm EduLink, your AI learning assistant.</p>
               <p class="mt-2">I can help you with questions for Class 10, 11, and 12 in various subjects.</p>
+              <p class="mt-2"><strong>📚 PDF Search:</strong> Use /ask endpoint with source (book10/book11/book12)</p>
             </div>
             <div class="text-xs text-gray-500 ml-2 mt-1">{{ now }}</div>
           </div>
@@ -445,7 +473,20 @@ def index():
         </div> 
       </div>
 
-      <div class="border-t border-gray-200 p-4 bg-gray-50">
+      <!-- ADDED: PDF Source Selector -->
+      <div class="border-t border-gray-200 p-3 bg-gray-50">
+        <div class="flex items-center gap-2 mb-2">
+          <label class="text-sm font-medium text-gray-700">📚 PDF Source:</label>
+          <select id="pdfSource" class="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="book10">Class 10 PDF</option>
+            <option value="book11">Class 11 PDF</option>
+            <option value="book12">Class 12 PDF</option>
+          </select>
+          <button onclick="testPDF()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-md text-sm transition-all">
+            Test PDF
+          </button>
+        </div>
+        
         <div class="flex items-center gap-2">
           <input id="userInput" type="text" placeholder="Ask me anything about Class 10 subjects..." 
                  class="flex-1 border border-gray-300 rounded-full py-3 px-6 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -479,6 +520,7 @@ def index():
   <script>
   const chatArea = document.getElementById('chatArea');
   const userInput = document.getElementById('userInput');
+  const pdfSource = document.getElementById('pdfSource');
   
   function styleBotReply(text) {
   if (text.includes("Here's what I found about")) {
@@ -489,6 +531,9 @@ def index():
         </div>
         <div>${text}</div>
       </div>`;
+  }
+  if (text.includes('📄 PDF Answer:')) {
+    return `<div class="bg-purple-50 border-l-4 border-purple-500 p-4 rounded"><strong>📚 PDF Result:</strong><br>${text}</div>`;
   }
   return `<p>${text}</p>`;
 }                                
@@ -514,8 +559,6 @@ def index():
         <div class="max-w-xl">
           <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
             ${styleBotReply(text)}
-
-
           </div>
           <div class="text-xs text-gray-500 ml-2 mt-1">${formatTime()}</div>
         </div>
@@ -531,24 +574,40 @@ def index():
     sendMessage();
   }
 
- async function sendMessage() {
-  const message = userInput.value.trim();
-  if (!message) return;
-  appendMessage('You', message, false);
-  userInput.value = '';
+  // FIXED: sendMessage now sends to /chat (existing questions) OR /ask (PDF queries)
+  async function sendMessage() {
+    const message = userInput.value.trim();
+    if (!message) return;
+    appendMessage('You', message, false);
+    userInput.value = '';
 
-  try {
-    const response = await fetch('/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, ai_mode: aiMode })
-    });
-    const data = await response.json();
-    appendMessage('EduLink', data.reply, true);
-  } catch (err) {
-    appendMessage('EduLink', 'Error: Could not connect to the server.', true);
+    try {
+      const response = await fetch('/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message, ai_mode: aiMode })
+      });
+      const data = await response.json();
+      appendMessage('EduLink', data.reply, true);
+    } catch (err) {
+      appendMessage('EduLink', 'Error: Could not connect to the server.', true);
+    }
   }
-}
+
+  // NEW: Test PDF search with selected source
+  async function testPDF() {
+    const testQuery = "supervised learning";
+    const source = pdfSource.value;
+    
+    try {
+      appendMessage('You', `Testing "${testQuery}" in ${source}`, false);
+      const response = await fetch('/test_pdf/' + source);
+      const data = await response.json();
+      appendMessage('EduLink', `📚 <strong>${source}</strong> - "${testQuery}":<br><pre>${data.result}</pre>`, true);
+    } catch (err) {
+      appendMessage('EduLink', 'Test failed. Check console.', true);
+    }
+  }
 
   function formatTime() {
     const now = new Date();
@@ -592,21 +651,21 @@ def index():
 
   // ✅ Attach mic to input row on page load
   window.addEventListener('DOMContentLoaded', () => {
-    const inputRow = document.querySelector('.border-t .flex');
-    inputRow.appendChild(micButton);
+    const inputRow = document.querySelector('.border-t .flex:last-child');
+    if (inputRow) inputRow.appendChild(micButton);
   });
 
   let aiMode = false;
 
-function toggleAIMode() {
-  aiMode = !aiMode;
-  const button = document.getElementById('aiModeButton');
-  button.textContent = `AI Mode: ${aiMode ? 'ON 🤖' : 'OFF'}`;
-  button.className = aiMode 
-    ? 'bg-blue-600 text-white px-4 py-2 rounded-full text-sm transition-all'
-    : 'bg-gray-200 hover:bg-blue-600 hover:text-white text-blue-700 px-4 py-2 rounded-full text-sm transition-all';
-}
-</script>
+  function toggleAIMode() {
+    aiMode = !aiMode;
+    const button = document.getElementById('aiModeButton');
+    button.textContent = `AI Mode: ${aiMode ? 'ON 🤖' : 'OFF'}`;
+    button.className = aiMode 
+      ? 'bg-blue-600 text-white px-4 py-2 rounded-full text-sm transition-all'
+      : 'bg-gray-200 hover:bg-blue-600 hover:text-white text-blue-700 px-4 py-2 rounded-full text-sm transition-all';
+  }
+  </script>
 
 </body>
 </html>
