@@ -456,7 +456,6 @@ def index():
             <div class="bg-blue-50 text-blue-900 p-4 rounded-lg rounded-tl-none">
               <p>Hi there! 👋 I'm EduLink, your AI learning assistant.</p>
               <p class="mt-2">I can help you with questions for Class 10, 11, and 12 in various subjects.</p>
-              <p class="mt-2"><strong>📚 PDF Search:</strong> Use /ask endpoint with source (book10/book11/book12)</p>
             </div>
             <div class="text-xs text-gray-500 ml-2 mt-1">{{ now }}</div>
           </div>
