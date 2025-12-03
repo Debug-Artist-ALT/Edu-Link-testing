@@ -473,19 +473,6 @@ def index():
         </div> 
       </div>
 
-      <!-- ADDED: PDF Source Selector -->
-      <div class="border-t border-gray-200 p-3 bg-gray-50">
-        <div class="flex items-center gap-2 mb-2">
-          <label class="text-sm font-medium text-gray-700">📚 PDF Source:</label>
-          <select id="pdfSource" class="border border-gray-300 rounded-md px-3 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            <option value="book10">Class 10 PDF</option>
-            <option value="book11">Class 11 PDF</option>
-            <option value="book12">Class 12 PDF</option>
-          </select>
-          <button onclick="testPDF()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-1 rounded-md text-sm transition-all">
-            Test PDF
-          </button>
-        </div>
         
         <div class="flex items-center gap-2">
           <input id="userInput" type="text" placeholder="Ask me anything about Class 10 subjects..." 
