@@ -5,6 +5,13 @@ import nltk
 nltk.download('punkt', quiet=True)
 from nltk.tokenize import sent_tokenize
 
+def normalize_text(text: str) -> str:
+    # Join hyphenated words broken across lines
+    text = re.sub(r"[\-\u2010]\s*\n\s*", "", text)
+    # Collapse multiple spaces/newlines
+    text = re.sub(r"\s+", " ", text)
+    return text
+
 def extract_text_from_pdf(pdf_path):
     doc = fitz.open(pdf_path)
     full_text = []
@@ -16,7 +23,9 @@ def extract_text_from_pdf(pdf_path):
             if text and len(text) > 20:  # Skip short headers/footers
                 full_text.append(text)
     doc.close()
-    return "\n\n".join(full_text)
+    # NEW: normalize after joining
+    joined = "\n\n".join(full_text)
+    return normalize_text(joined)
 
 # Extract text from each PDF separately
 pdf_text10 = extract_text_from_pdf("static/documents/AI_Book10.pdf")
